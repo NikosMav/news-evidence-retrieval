@@ -82,6 +82,7 @@ def run_document_comparison(
     dense_model: str = DEFAULT_DENSE_MODEL,
     show_progress: bool = False,
     methods: Iterable[str] = ("bm25", "dense", "hybrid"),
+    query_prompt: str = "",
 ) -> dict:
     """Rank whole documents with BM25, a dense encoder, and RRF of those two.
 
@@ -112,6 +113,9 @@ def run_document_comparison(
         dense_encoder=dense_encoder,
         show_progress=show_progress,
     )
+    if query_prompt and hasattr(dense_encoder, "query_prompt"):
+        # After the corpus encode, so the instruction is applied to queries only.
+        dense_encoder.query_prompt = query_prompt
 
     judged = {qid: rels for qid, rels in qrels.items() if rels}
     query_rows = queries[queries["query_id"].astype(str).isin(judged)]
@@ -180,7 +184,35 @@ def run_document_comparison(
         "dense_model": dense_model,
         "n_documents": int(len(documents)),
         "n_judged_queries": len(judged),
+        "runs": runs,
+        "query_prompt": query_prompt,
     }
+
+
+def order_from_run(doc_scores: dict[str, float]) -> list[str]:
+    """Recover retrieval order from the strictly decreasing scores in a run."""
+    return [doc_id for doc_id, _ in sorted(doc_scores.items(), key=lambda item: (-item[1], item[0]))]
+
+
+def apply_rerank(ordered_ids: list[str], head_scores: Iterable[float], depth: int = 50) -> list[str]:
+    """Replace the top ``depth`` ids using ``head_scores``; keep the tail in order.
+
+    Ties in the reranker keep the first-stage order.
+    """
+    ordered = list(ordered_ids)
+    if depth < 1:
+        raise ValueError("depth must be >= 1")
+    width = min(depth, len(ordered))
+    scores = [float(score) for score in head_scores]
+    if len(scores) != width:
+        raise ValueError(f"expected {width} reranker scores, got {len(scores)}")
+    head = ordered[:width]
+    tail = ordered[width:]
+    ranked_head = [
+        head[index]
+        for index in sorted(range(width), key=lambda index: (-scores[index], index))
+    ]
+    return ranked_head + tail
 
 
 def _documents_to_passages(documents: pd.DataFrame) -> pd.DataFrame:

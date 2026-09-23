@@ -21,8 +21,10 @@ That script does not rewrite the ISOT tables.
 | `eval_queries.csv` | Query set used for the ISOT table |
 | `workflow_comparison.csv` | Optional classify-then vs retrieve-first demo rows |
 | `scifact_train_metrics.csv` | BM25 vs MiniLM vs RRF on `beir/scifact/train`, if that split was run |
-| `scifact_test_metrics.csv` | Same comparison on `beir/scifact/test`, if that split was run |
-| `scifact_eval_meta.json` | Tokenizer, anchors, and the command that produced the SciFact rows |
+| `scifact_test_metrics.csv` | BM25 vs MiniLM vs RRF on `beir/scifact/test` |
+| `scifact_test_ablations.csv` | Cross-encoder rerank and `bge-small-en-v1.5` on the test split |
+| `scifact_failures.md` | Three test misses from the frozen three-way run |
+| `scifact_eval_meta.json` | Tokenizer, anchors, sign tests, and the commands that produced the rows |
 
 `article_mrr` is not a column. With one gold article it copied passage MRR.
 

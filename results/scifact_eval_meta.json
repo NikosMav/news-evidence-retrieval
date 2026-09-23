@@ -1,0 +1,154 @@
+{
+  "task": "SciFact document retrieval (BEIR qrels). Not the ISOT title-recovery check.",
+  "loader": "ir_datasets",
+  "metrics": [
+    "ndcg_cut_10",
+    "recall_100",
+    "recip_rank"
+  ],
+  "metrics_library": "pytrec_eval",
+  "bm25": {
+    "library": "bm25s",
+    "method": "lucene",
+    "k1": 0.9,
+    "b": 0.4,
+    "stopwords": "english",
+    "stemmer": "PyStemmer english (Snowball)"
+  },
+  "hybrid": "RRF k=60 over BM25 and dense ranks; raw scores ignored",
+  "chunking": "Whole abstracts. The word-window chunker is not used.",
+  "anchors": {
+    "beir_bm25_ndcg@10": 0.665,
+    "anserini_flat_bm25_ndcg@10": 0.6789,
+    "note": "Anchors are published numbers. k1=0.9, b=0.4 matches Anserini's BEIR flat BM25 setting more closely than the Elasticsearch defaults behind BEIR's 0.665."
+  },
+  "command_train": "python scripts/run_scifact_eval.py --split train",
+  "command_test": "python scripts/run_scifact_eval.py --split test",
+  "discipline": "Develop on beir/scifact/train. Score beir/scifact/test only after metric code is frozen.",
+  "splits": {
+    "train": {
+      "dataset": "beir/scifact/train",
+      "n_documents": 5183,
+      "n_judged_queries": 809,
+      "k": 100,
+      "dense_model": "sentence-transformers/all-MiniLM-L6-v2",
+      "metrics_file": "results/scifact_train_metrics.csv",
+      "per_query_file": "results/scifact_train_per_query.csv",
+      "sign_test_ndcg@10_vs_bm25": {
+        "dense": {
+          "n_queries": 809,
+          "n_pos": 153,
+          "n_neg": 214,
+          "n_ties": 442,
+          "pvalue": 0.001699309920628307,
+          "metric": "ndcg@10",
+          "compared_to": "bm25"
+        },
+        "hybrid": {
+          "n_queries": 809,
+          "n_pos": 159,
+          "n_neg": 89,
+          "n_ties": 561,
+          "pvalue": 1.0381246171210243e-05,
+          "metric": "ndcg@10",
+          "compared_to": "bm25"
+        }
+      }
+    },
+    "test": {
+      "dataset": "beir/scifact/test",
+      "n_documents": 5183,
+      "n_judged_queries": 300,
+      "k": 100,
+      "dense_model": "sentence-transformers/all-MiniLM-L6-v2",
+      "metrics_file": "results/scifact_test_metrics.csv",
+      "per_query_file": "results/scifact_test_per_query.csv",
+      "sign_test_ndcg@10_vs_bm25": {
+        "dense": {
+          "n_queries": 300,
+          "n_pos": 65,
+          "n_neg": 70,
+          "n_ties": 165,
+          "pvalue": 0.7307894394358095,
+          "metric": "ndcg@10",
+          "compared_to": "bm25"
+        },
+        "hybrid": {
+          "n_queries": 300,
+          "n_pos": 74,
+          "n_neg": 21,
+          "n_ties": 205,
+          "pvalue": 4.24989199238447e-08,
+          "metric": "ndcg@10",
+          "compared_to": "bm25"
+        }
+      }
+    }
+  },
+  "headline_split": "test",
+  "ablations": {
+    "split": "test",
+    "first_stage": "hybrid",
+    "first_stage_choice": "Hybrid was the better first stage on beir/scifact/train (nDCG@10 0.719 > BM25 0.694 > MiniLM 0.660). The test split was not used to choose it.",
+    "reranker": "cross-encoder/ms-marco-MiniLM-L-6-v2",
+    "rerank_depth": 50,
+    "embedding": "BAAI/bge-small-en-v1.5",
+    "embedding_query_prompt": "Represent this sentence for searching relevant passages: ",
+    "sentence_transformers_pin": "Kept sentence-transformers>=2.6,<4. Both models use the existing CrossEncoder and SentenceTransformer.encode APIs.",
+    "metrics_file": "results/scifact_test_ablations.csv",
+    "failures_file": "results/scifact_failures.md",
+    "command": "python scripts/run_scifact_ablations.py --split test",
+    "rows": [
+      {
+        "method": "hybrid_rerank",
+        "n_queries": 300,
+        "ndcg@10": 0.6903353695523998,
+        "recall@100": 0.955,
+        "recip_rank": 0.6651637096837805
+      },
+      {
+        "method": "bge",
+        "n_queries": 300,
+        "ndcg@10": 0.7127069247605036,
+        "recall@100": 0.9416666666666667,
+        "recip_rank": 0.6865531868611328
+      },
+      {
+        "method": "bge_hybrid",
+        "n_queries": 300,
+        "ndcg@10": 0.7188857090030123,
+        "recall@100": 0.965,
+        "recip_rank": 0.6864635872577949
+      }
+    ],
+    "sign_test_ndcg@10_vs_bm25": {
+      "hybrid_rerank": {
+        "n_queries": 300,
+        "n_pos": 63,
+        "n_neg": 45,
+        "n_ties": 192,
+        "pvalue": 0.10143273504110485,
+        "metric": "ndcg@10",
+        "compared_to": "bm25"
+      },
+      "bge": {
+        "n_queries": 300,
+        "n_pos": 74,
+        "n_neg": 47,
+        "n_ties": 179,
+        "pvalue": 0.01772952126897058,
+        "metric": "ndcg@10",
+        "compared_to": "bm25"
+      },
+      "bge_hybrid": {
+        "n_queries": 300,
+        "n_pos": 72,
+        "n_neg": 20,
+        "n_ties": 208,
+        "pvalue": 4.606251020832626e-08,
+        "metric": "ndcg@10",
+        "compared_to": "bm25"
+      }
+    }
+  }
+}

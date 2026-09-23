@@ -6,7 +6,7 @@ import sys
 
 import pandas as pd
 
-from evidence_retrieval.eval.scifact import run_document_comparison
+from evidence_retrieval.eval.scifact import apply_rerank, run_document_comparison
 from tests.conftest import FakeDenseEncoder
 
 
@@ -76,3 +76,8 @@ def test_fixture_comparison_does_not_download_beir():
     assert "dense" in result["sign_tests"]
     assert result["sign_tests"]["dense"]["compared_to"] == "bm25"
     assert "torch" not in sys.modules
+
+
+def test_rerank_reorders_only_the_head_and_keeps_ties():
+    assert apply_rerank(["a", "b", "c", "d"], [0.1, 0.2, 0.9], depth=3) == ["c", "b", "a", "d"]
+    assert apply_rerank(["a", "b", "c"], [1.0, 1.0, 0.0], depth=3) == ["a", "b", "c"]

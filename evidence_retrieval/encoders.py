@@ -162,6 +162,9 @@ class DenseEncoder:
 
     model_name: str = DEFAULT_DENSE_MODEL
     batch_size: int = 64
+    # Prepended only after the corpus has been encoded, so queries can use a
+    # retrieval instruction (BGE) while passages stay unprefixed.
+    query_prompt: str = ""
     _model: object | None = field(default=None, repr=False)
 
     def _ensure_model(self):
@@ -177,8 +180,9 @@ class DenseEncoder:
         show_progress: bool = False,
     ) -> np.ndarray:
         model = self._ensure_model()
+        payload = [f"{self.query_prompt}{text}" if self.query_prompt else text for text in texts]
         emb = model.encode(
-            list(texts),
+            payload,
             batch_size=self.batch_size,
             show_progress_bar=show_progress,
             convert_to_numpy=True,

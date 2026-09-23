@@ -62,6 +62,23 @@ def mean_measures(per_query: Mapping[str, Mapping[str, float]]) -> dict[str, flo
     }
 
 
+def summarize_run(
+    method: str,
+    qrels: Qrels,
+    run: Run,
+    measures: Iterable[str] = BEIR_MEASURES,
+) -> tuple[dict[str, float | int | str], dict[str, dict[str, float]]]:
+    """Mean row plus per-query scores for one run."""
+    scores = evaluate_run(qrels, run, measures)
+    means = mean_measures(scores)
+    row: dict[str, float | int | str] = {
+        "method": method,
+        "n_queries": len(scores),
+        **{MEASURE_COLUMNS[name]: means.get(name, 0.0) for name in measures},
+    }
+    return row, scores
+
+
 def paired_sign_test(
     left: Mapping[str, float],
     right: Mapping[str, float],

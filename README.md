@@ -13,21 +13,16 @@ The comparison that can support a retrieval claim is SciFact document ranking
 The ISOT table further down is a title-recovery sanity check. Do not cite it as
 evidence retrieval.
 
-## SciFact document qrels
+## SciFact test
 
-`scripts/run_scifact_eval.py` loads `beir/scifact/train` or `beir/scifact/test`
-through `ir_datasets` (document qrels, whole abstracts, no word-window
-chunking). It compares:
+`beir/scifact/test` via `ir_datasets`: 300 claims, 5,183 abstracts, one document
+per abstract. Metrics are pytrec_eval nDCG@10, Recall@100, and reciprocal rank.
+BM25 is `bm25s` with Lucene scoring, k1=0.9, b=0.4, English stopwords, and a
+Snowball stemmer. Dense retrieval is `sentence-transformers/all-MiniLM-L6-v2`.
+Hybrid is RRF (k=60) of those two rank lists. The word-window chunker is not used.
 
-- sparse BM25 (`bm25s`, Lucene scoring, k1=0.9, b=0.4, English stopwords, Snowball stemmer)
-- dense MiniLM (`sentence-transformers/all-MiniLM-L6-v2`)
-- hybrid RRF (k=60) of those two rank lists
-
-Metrics are `pytrec_eval` nDCG@10, Recall@100, and reciprocal rank. Develop on
-the train split. Score the test split only after the metric code is frozen.
-k1=0.9 and b=0.4 follow Anserini's BEIR flat BM25 setting (published nDCG@10
-0.6789). BEIR's own BM25 anchor is 0.665. Those anchors are citations, not
-numbers this repository has measured until a test table is committed.
+The train split (809 queries) was run first. The test split was scored only
+after that metric code was frozen. Regenerate with:
 
 ```bash
 pip install -e ".[scifact]"
@@ -35,9 +30,57 @@ python scripts/run_scifact_eval.py --split train
 python scripts/run_scifact_eval.py --split test
 ```
 
-The test split has not been scored in this checkout yet. Until
-`results/scifact_test_metrics.csv` exists, there is no SciFact result to quote.
-CI does not download BEIR or the embedding model.
+<!-- SCIFACT_TEST_TABLE_START -->
+| Method | nDCG@10 | Recall@100 | Reciprocal rank |
+| --- | ---: | ---: | ---: |
+| bm25 | 0.6762 | 0.9127 | 0.6456 |
+| dense | 0.6451 | 0.9250 | 0.6110 |
+| hybrid | 0.7194 | 0.9550 | 0.6869 |
+<!-- SCIFACT_TEST_TABLE_END -->
+
+BM25 nDCG@10 is 0.6762. The published anchors are BEIR BM25 **0.665** and
+Anserini flat BM25 **0.6789**. Recall@100 for this BM25 run is 0.9127; BEIR
+reports 0.908 for BM25.
+
+MiniLM does not beat BM25 on nDCG@10 (0.6451 vs 0.6762; paired sign test
+p=0.73). Hybrid does (0.7194; 74 queries up, 21 down, 205 ties, p=4.3×10⁻⁸).
+
+### Ablations on the same test qrels
+
+The reranker uses hybrid as its first stage because that system had the higher
+train nDCG@10 (0.719 vs BM25 0.694 vs MiniLM 0.660). The test split was not
+used to choose it.
+
+<!-- SCIFACT_ABLATION_TABLE_START -->
+| Method | nDCG@10 | Recall@100 | Reciprocal rank |
+| --- | ---: | ---: | ---: |
+| hybrid_rerank | 0.6903 | 0.9550 | 0.6652 |
+| bge | 0.7127 | 0.9417 | 0.6866 |
+| bge_hybrid | 0.7189 | 0.9650 | 0.6865 |
+<!-- SCIFACT_ABLATION_TABLE_END -->
+
+Replacing MiniLM with `BAAI/bge-small-en-v1.5` moves dense nDCG@10 from 0.6451
+to 0.7127 (sign test against BM25, p=0.018). Queries use BGE's retrieval
+instruction; abstracts do not. Putting that encoder into RRF does not move the
+hybrid number (0.7189 vs 0.7194).
+
+Reranking the top 50 hybrid hits with `cross-encoder/ms-marco-MiniLM-L-6-v2`
+does not help. nDCG@10 goes from 0.7194 to 0.6903, and the comparison with BM25
+is not significant (p=0.10). Recall@100 stays 0.9550 because the reranker only
+reorders those 50 hits.
+
+`sentence-transformers` stays `>=2.6,<4`. Both ablations use the existing
+`SentenceTransformer.encode` and `CrossEncoder` APIs. Regenerate the ablation
+rows with `python scripts/run_scifact_ablations.py --split test`.
+
+Three misses from the frozen three-way run are in
+[`results/scifact_failures.md`](results/scifact_failures.md): a methionine-restriction
+claim whose BM25 hit is a lifespan abstract while MiniLM returns a miRNA review;
+a vCJD prevalence claim that BM25 ranks first and MiniLM replaces with a different
+case report; and a low-birth-weight claim that none of the three systems place
+in the top 10.
+
+CI does not download BEIR or these models.
 
 ## ISOT title-recovery sanity check
 
