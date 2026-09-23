@@ -186,6 +186,10 @@ def cmd_eval(args: argparse.Namespace) -> int:
         index=index if args.save_index else None,
         index_dir=args.index_out,
         queries_path=qpath,
+        n_articles=args.n_articles,
+        max_queries=args.max_queries,
+        ablation_articles=None if args.skip_ablations else min(args.n_articles, args.ablation_articles),
+        ablation_queries=None if args.skip_ablations else min(args.max_queries, args.ablation_queries),
     )
     print("\nWrote:")
     for k, p in paths.items():
@@ -285,7 +289,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="evidence_retrieval",
         description=(
             "Evidence retrieval over the ISOT news corpus.\n\n"
-            "Chunk articles -> TF-IDF + MiniLM -> hybrid RRF ranking.\n"
+            "Chunk articles -> TF-IDF or BM25 + MiniLM -> hybrid RRF ranking.\n"
             "Returns ranked passages with title, source-bucket label, and score.\n\n"
             "This is NOT a fact-checker. ISOT labels are source buckets\n"
             "(Reuters-style vs unreliable outlets), not claim-level truth.\n"
@@ -327,9 +331,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_query.add_argument("--top-k", type=int, default=5, help="Number of hits to return")
     p_query.add_argument(
         "--method",
-        choices=["tfidf", "dense", "hybrid"],
+        choices=["tfidf", "bm25", "dense", "hybrid"],
         default="hybrid",
-        help="Ranking backend (default: hybrid RRF)",
+        help="Ranking backend (default: hybrid RRF; bm25 needs a BM25 index)",
     )
     p_query.add_argument(
         "--json",
@@ -340,15 +344,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_eval = sub.add_parser(
         "eval",
-        help="Reproducible title-to-passage eval -> results/*.csv (proxy, not claim verification)",
+        help="ISOT title-recovery sanity check -> results/*.csv (not claim verification)",
     )
     p_eval.add_argument("--data-dir", type=Path, default=Path("data"))
     p_eval.add_argument("--results-dir", type=Path, default=Path("results"))
     p_eval.add_argument("--n-articles", type=int, default=4000)
     p_eval.add_argument("--chunk-words", type=int, default=120)
     p_eval.add_argument("--max-queries", type=int, default=300)
-    p_eval.add_argument("--ablation-articles", type=int, default=2500)
-    p_eval.add_argument("--ablation-queries", type=int, default=200)
+    p_eval.add_argument("--ablation-articles", type=int, default=2000)
+    p_eval.add_argument("--ablation-queries", type=int, default=150)
     p_eval.add_argument("--random-state", type=int, default=7)
     p_eval.add_argument("--skip-ablations", action="store_true")
     p_eval.add_argument("--save-index", action="store_true", default=True)

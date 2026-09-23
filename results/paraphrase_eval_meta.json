@@ -1,5 +1,5 @@
 {
-  "protocol": "Paraphrase-title \u2192 same-article body chunks. Queries are deterministic rule-based paraphrases of article titles; gold = indexed chunks with the same article_id. Harder justified proxy than raw title self-retrieval \u2014 not claim verification.",
+  "protocol": "Rule-based rewrite of an article title; gold is still every indexed chunk of that same article. Same-article title recovery, not claim verification, and not a lexical stress test.",
   "main_comparison_ref": "results/retrieval_metrics.csv",
   "n_queries": 300,
   "methods": [
@@ -9,5 +9,7 @@
   ],
   "metrics_file": "results/paraphrase_metrics.csv",
   "queries_file": "results/paraphrase_queries.csv",
-  "note": "Scores are expected to drop vs title self-retrieval; that drop is the point."
+  "mean_token_jaccard": 0.8063934233710275,
+  "content_word_retention": 0.9422362447070686,
+  "note": "The rewrite did not cut lexical overlap enough to be a stress test. Mean token Jaccard is 0.806 and content-word retention is 0.942. TF-IDF article Hit@1 rose from 0.6533 to 0.6767. Do not read this table as a robustness result."
 }

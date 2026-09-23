@@ -16,7 +16,12 @@ from evidence_retrieval.eval.metrics import (
     recall_at_k,
     recall_at_k_binary,
 )
-from evidence_retrieval.eval.queries import build_title_queries, paraphrase_queries_to_frame
+from evidence_retrieval.eval.queries import (
+    build_title_queries,
+    content_word_retention,
+    paraphrase_queries_to_frame,
+    token_jaccard,
+)
 from evidence_retrieval.index import IndexConfig, Method, PassageIndex
 
 KS = (1, 5, 10)
@@ -34,7 +39,6 @@ _METRIC_COLS = [
     "ndcg@5",
     "ndcg@10",
     "mrr",
-    "article_mrr",
 ]
 
 
@@ -70,7 +74,8 @@ def _evaluate_method(
             )
             row[f"ndcg@{k}"] = ndcg_at_k(gold_chunks, ranked_chunks, k)
         row["mrr"] = mrr(gold_chunks, ranked_chunks)
-        row["article_mrr"] = mrr(gold_articles, ranked_articles)
+        # article_mrr is not recorded. With one gold article it is the rank of
+        # the first gold chunk, which is already `mrr`.
         per_query.append(row)
 
         # Hard-negative / leakage signals among top-5
@@ -96,7 +101,6 @@ def _evaluate_method(
                 "opposite_label_in_top5": opposite,
                 "same_subject_other_in_top5": same_subject_other,
                 "mrr": row["mrr"],
-                "article_mrr": row["article_mrr"],
             }
         )
 
@@ -145,8 +149,8 @@ def run_main_comparison(
 
 def run_ablations(
     data_dir: Path | str = "data",
-    n_articles: int = 2500,
-    max_queries: int = 200,
+    n_articles: int = 2000,
+    max_queries: int = 150,
     random_state: int = 7,
     show_progress: bool = True,
 ) -> pd.DataFrame:
@@ -234,7 +238,6 @@ def run_ablations(
                 "ndcg@5": means["ndcg@5"],
                 "ndcg@10": means["ndcg@10"],
                 "mrr": means["mrr"],
-                "article_mrr": means["article_mrr"],
             }
         )
 
@@ -312,24 +315,84 @@ def save_paraphrase_bundle(
     detail.to_csv(paths["detail"], index=False)
     paraphrase_queries_to_frame(queries).to_csv(paths["queries"], index=False)
 
+    overlap = _paraphrase_overlap(queries)
     meta = {
         "protocol": (
-            "Paraphrase-title → same-article body chunks. "
-            "Queries are deterministic rule-based paraphrases of article titles; "
-            "gold = indexed chunks with the same article_id. "
-            "Harder justified proxy than raw title self-retrieval — not claim verification."
+            "Rule-based rewrite of an article title; gold is still every indexed "
+            "chunk of that same article. Same-article title recovery, not claim "
+            "verification, and not a lexical stress test."
         ),
         "main_comparison_ref": "results/retrieval_metrics.csv",
         "n_queries": int(len(queries)),
         "methods": summary["method"].tolist() if "method" in summary.columns else [],
         "metrics_file": str(paths["metrics"]),
         "queries_file": str(paths["queries"]),
-        "note": (
-            "Scores are expected to drop vs title self-retrieval; that drop is the point."
-        ),
+        "mean_token_jaccard": overlap["mean_token_jaccard"],
+        "content_word_retention": overlap["content_word_retention"],
+        "note": _paraphrase_note(summary, overlap, results_dir / "retrieval_metrics.csv"),
     }
     paths["meta"].write_text(json.dumps(meta, indent=2), encoding="utf-8")
     return paths
+
+
+def _paraphrase_overlap(queries) -> dict[str, float]:
+    if not queries:
+        return {"mean_token_jaccard": 0.0, "content_word_retention": 0.0}
+    jaccard_values = [
+        token_jaccard(q.title, q.query_text) for q in queries
+    ]
+    retention_values = [
+        content_word_retention(q.title, q.query_text) for q in queries
+    ]
+    return {
+        "mean_token_jaccard": float(sum(jaccard_values) / len(jaccard_values)),
+        "content_word_retention": float(sum(retention_values) / len(retention_values)),
+    }
+
+
+def _paraphrase_note(
+    summary: pd.DataFrame,
+    overlap: dict[str, float],
+    main_metrics_path: Path,
+) -> str:
+    note = (
+        "The rewrite did not cut lexical overlap enough to be a stress test. "
+        f"Mean token Jaccard is {overlap['mean_token_jaccard']:.3f} and "
+        f"content-word retention is {overlap['content_word_retention']:.3f}."
+    )
+    rise = _tfidf_hit1_change(summary, main_metrics_path)
+    if rise is not None:
+        old, new = rise
+        if new > old:
+            note += (
+                f" TF-IDF article Hit@1 rose from {old:.4f} to {new:.4f}."
+            )
+        elif new < old:
+            note += (
+                f" TF-IDF article Hit@1 moved from {old:.4f} to {new:.4f}."
+            )
+        else:
+            note += f" TF-IDF article Hit@1 stayed at {new:.4f}."
+    note += " Do not read this table as a robustness result."
+    return note
+
+
+def _tfidf_hit1_change(
+    summary: pd.DataFrame,
+    main_metrics_path: Path,
+) -> tuple[float, float] | None:
+    if summary is None or summary.empty or "method" not in summary.columns:
+        return None
+    if not main_metrics_path.exists():
+        return None
+    main = pd.read_csv(main_metrics_path)
+    if "article_hit@1" not in summary.columns or "article_hit@1" not in main.columns:
+        return None
+    new_rows = summary[summary["method"] == "tfidf"]
+    old_rows = main[main["method"] == "tfidf"]
+    if new_rows.empty or old_rows.empty:
+        return None
+    return float(old_rows["article_hit@1"].iloc[0]), float(new_rows["article_hit@1"].iloc[0])
 
 
 def write_qualitative_failures(
@@ -349,8 +412,9 @@ def write_qualitative_failures(
     lines = [
         "# Qualitative failure cases (auto-sampled from eval detail)",
         "",
-        "These examples come from the title→passage evaluation detail dump.",
-        "They illustrate limits of nearest-neighbor retrieval over ISOT — not claim verdicts.",
+        "These examples come from the ISOT title-recovery sanity check "
+        "(query = article title, gold = that article's passages).",
+        "They are misses against finding the source article, not against finding evidence for a claim.",
         "",
         "## Misses (gold article absent from top-5)",
         "",
@@ -399,13 +463,118 @@ def write_qualitative_failures(
         "",
         "## Takeaway",
         "",
-        "High self-retrieval scores mean the index can find an article's own passages "
-        "from its title. That is necessary but not sufficient for fact-checking. "
+        "High scores here mean the index can find an article's own passages from its title. "
+        "That is a pipeline sanity check, not evidence retrieval. "
         "ISOT labels remain source buckets.",
         "",
     ]
     out_path.write_text("\n".join(lines), encoding="utf-8")
     return out_path
+
+
+def build_isot_eval_meta(
+    summary: pd.DataFrame | None = None,
+    ablations: pd.DataFrame | None = None,
+    *,
+    n_articles: int | None = None,
+    max_queries: int | None = None,
+    ablation_articles: int | None = None,
+    ablation_queries: int | None = None,
+    metrics_file: str = "results/retrieval_metrics.csv",
+    ablations_file: str = "results/retrieval_ablations.csv",
+) -> dict:
+    """Protocol note for the committed ISOT title-recovery run.
+
+    The numeric sentences are computed from the tables when those columns exist,
+    so a regeneration does not keep a stale 'scores should drop' claim.
+    """
+    main = {
+        "n_articles": n_articles if n_articles is not None else 4000,
+        "chunk_words": 120,
+        "fields": ["body"],
+        "n_queries": max_queries if max_queries is not None else 300,
+        "dense_model": "sentence-transformers/all-MiniLM-L6-v2",
+        "methods": ["tfidf", "dense", "hybrid"],
+        "random_state": 7,
+        "role": "title-recovery sanity check",
+    }
+    if summary is not None and not summary.empty and "n_queries" in summary.columns:
+        main["n_queries"] = int(summary["n_queries"].iloc[0])
+
+    ab_articles = 2000 if ablation_articles is None else int(ablation_articles)
+    ab_queries = 150 if ablation_queries is None else int(ablation_queries)
+    if ablations is not None and not ablations.empty and "n_queries" in ablations.columns:
+        ab_queries = int(ablations["n_queries"].iloc[0])
+
+    return {
+        "protocol": (
+            "ISOT title-recovery sanity check. The query is the article title and "
+            "the gold set is every indexed chunk of that same article. This is not "
+            "human relevance judgment, not claim verification, and not comparable "
+            "to SciFact or BEIR."
+        ),
+        "interpretation": _isot_interpretation(summary, ablations),
+        "main_comparison": main,
+        "ablations": {
+            "n_articles": ab_articles,
+            "n_queries": ab_queries,
+            "notes": (
+                "Shared article sample across chunk-size / field / method experiments. "
+                f"This file used {ab_articles} articles and {ab_queries} queries. "
+                "The eval CLI defaults are 2000 articles and 150 queries, matching the committed run."
+            ),
+        },
+        "metrics_file": metrics_file,
+        "ablations_file": ablations_file,
+    }
+
+
+def _isot_interpretation(
+    summary: pd.DataFrame | None,
+    ablations: pd.DataFrame | None,
+) -> dict[str, str]:
+    hit_note = (
+        "Hybrid's article Hit@1 edge over dense is small, while article Hit@10 moves more."
+    )
+    if summary is not None and not summary.empty and {"method", "article_hit@1", "article_hit@10"} <= set(summary.columns):
+        by_method = summary.set_index("method")
+        if {"hybrid", "dense"} <= set(by_method.index):
+            hybrid_hit1 = float(by_method.loc["hybrid", "article_hit@1"])
+            dense_hit1 = float(by_method.loc["dense", "article_hit@1"])
+            hybrid_hit10 = float(by_method.loc["hybrid", "article_hit@10"])
+            dense_hit10 = float(by_method.loc["dense", "article_hit@10"])
+            edge = hybrid_hit1 - dense_hit1
+            hit_note = (
+                f"Hybrid's article Hit@1 edge over dense is {edge:.4f} "
+                f"({hybrid_hit1:.4f} vs {dense_hit1:.4f}), while article Hit@10 "
+                f"moves more ({hybrid_hit10:.4f} vs {dense_hit10:.4f})."
+            )
+
+    recall_note = (
+        "Passage recall moves with chunk size because every chunk of the gold article is relevant."
+    )
+    if ablations is not None and not ablations.empty and "experiment" in ablations.columns:
+        named = ablations.set_index("experiment")
+        if {"chunk60_hybrid", "chunk240_hybrid"} <= set(named.index):
+            short = float(named.loc["chunk60_hybrid", "passage_recall@5"])
+            long = float(named.loc["chunk240_hybrid", "passage_recall@5"])
+            short_hit = float(named.loc["chunk60_hybrid", "article_hit@1"])
+            long_hit = float(named.loc["chunk240_hybrid", "article_hit@1"])
+            recall_note = (
+                "Passage recall moves with chunk size because every chunk of the gold "
+                f"article is relevant. Hybrid passage Recall@5 goes from {short:.3f} at "
+                f"60 words to {long:.3f} at 240 words, while article Hit@1 stays near "
+                f"{short_hit:.3f}–{long_hit:.3f}."
+            )
+
+    return {
+        "hit_at_1_note": hit_note,
+        "passage_recall_note": recall_note,
+        "article_mrr_note": (
+            "article_mrr was dropped. With a single gold article it duplicated passage "
+            "MRR on every committed row, so it was not a second result."
+        ),
+    }
 
 
 def save_eval_bundle(
@@ -416,6 +585,10 @@ def save_eval_bundle(
     index: PassageIndex | None = None,
     index_dir: Path | str = "data/retrieval_index/default",
     queries_path: Path | str | None = None,
+    n_articles: int | None = None,
+    max_queries: int | None = None,
+    ablation_articles: int | None = None,
+    ablation_queries: int | None = None,
 ) -> dict[str, Path]:
     results_dir = Path(results_dir)
     results_dir.mkdir(parents=True, exist_ok=True)
@@ -443,15 +616,16 @@ def save_eval_bundle(
     # Rebuild query list from detail titles is lossy; caller may pass separately.
     paths["queries"] = Path(queries_path)
 
-    meta = {
-        "protocol": (
-            "Title-as-claim self-retrieval: query=article title; "
-            "gold=indexed chunks with the same article_id. "
-            "Not human fact-check labels."
-        ),
-        "metrics_file": str(paths["metrics"]),
-        "ablations_file": str(paths["ablations"]),
-    }
+    meta = build_isot_eval_meta(
+        summary,
+        ablations,
+        n_articles=n_articles,
+        max_queries=max_queries,
+        ablation_articles=ablation_articles,
+        ablation_queries=ablation_queries,
+        metrics_file=str(paths["metrics"]),
+        ablations_file=str(paths["ablations"]),
+    )
     meta_path = results_dir / "retrieval_eval_meta.json"
     meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
     paths["meta"] = meta_path
