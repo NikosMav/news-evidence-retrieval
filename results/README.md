@@ -12,7 +12,8 @@ ISOT files further down are a closed-corpus title-recovery demo.
 Published anchors: BEIR BM25 nDCG@10 **0.665**, Anserini flat BM25 **0.6789**.
 
 `BAAI/bge-small-en-v1.5` moves dense nDCG@10 from 0.6451 to 0.7127. The same
-encoder inside RRF does not move hybrid (0.7189 vs 0.7194). Reranking hybrid's
+encoder inside RRF does not move hybrid nDCG@10 (0.7189 vs 0.7194). BGE hybrid
+Recall@100 does move, to 0.9650. Reranking hybrid's
 top 50 with `cross-encoder/ms-marco-MiniLM-L-6-v2` moves nDCG@10 from 0.7194
 to 0.6903. Three misses from the frozen three-way run are in `scifact_failures.md`.
 
