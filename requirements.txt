@@ -1,7 +1,7 @@
-# Full stack: retrieval package + classification notebook extras.
+# Retrieval package plus the walkthrough notebook.
 # From the repo root:
 #   pip install -r requirements.txt
 #
-# Retrieval CLI / eval / unit tests only (no wordcloud/plotly/jupyter):
+# Retrieval CLI / eval / unit tests only:
 #   pip install -e ".[dev]"
 -e ".[notebook]"

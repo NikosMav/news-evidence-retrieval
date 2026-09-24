@@ -47,7 +47,6 @@ Those scripts do not rewrite the ISOT tables.
 | `retrieval_eval_detail.csv` | Per-query ranks + leakage signals |
 | `qualitative_failures.md` | Sampled title-recovery misses |
 | `eval_queries.csv` | Query set used for the ISOT demo table |
-| `workflow_comparison.csv` | Optional classify-then vs retrieve-first demo rows |
 
 `article_mrr` is not a column. With one gold article it copied passage MRR.
 

@@ -307,7 +307,7 @@ def build_parser() -> argparse.ArgumentParser:
             "\n"
             "quick install:\n"
             "  pip install -e .\n"
-            "  pip install -r requirements.txt   # + classification notebook stack\n"
+            "  pip install -r requirements.txt   # + walkthrough notebook\n"
         ),
     )
     sub = parser.add_subparsers(dest="command", required=True)
