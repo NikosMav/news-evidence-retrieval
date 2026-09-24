@@ -1,8 +1,7 @@
 # News Evidence Retrieval
 
 Passage retrieval with TF-IDF, BM25, MiniLM embeddings, and hybrid reciprocal
-rank fusion (RRF). The repository also keeps the original supervised
-classification notebook as a documented historical study.
+rank fusion (RRF).
 
 This project retrieves passages from a fixed corpus. It is **not a
 fact-checker**. ISOT labels are source buckets, and a retrieved neighbor does
@@ -193,26 +192,8 @@ python -m evidence_retrieval eval --paraphrase-only
 | `results/` | SciFact test table, ablations, and the ISOT title-recovery demo |
 | `scripts/run_scifact_eval.py` | BM25 vs MiniLM vs RRF on SciFact |
 | `scripts/run_scifact_ablations.py` | Cross-encoder rerank and BGE-small on the frozen test split |
-| `scripts/` | Data download, ISOT demo evaluation, and notebook helpers |
+| `scripts/` | Data download, ISOT demo evaluation, and the retrieval notebook helper |
 | `evidence_retrieval.ipynb` | Closed-corpus ISOT demo |
-| `fake_news_classification.ipynb` | Original classification case study |
-
-## Why the 0.9963 SVM misleads
-
-The classification notebook compares Count, TF-IDF, and Word2Vec features across
-logistic regression, Naive Bayes, linear SVM, and random forest models. Its best
-committed result is Count + linear SVM at `0.9963` test accuracy.
-
-That number is not fact-check accuracy. A random ISOT article split leaks outlet
-style between train and test. The retrieval project leaves the notebook in place
-and does not retune it.
-
-To run the notebook stack:
-
-```bash
-pip install -r requirements.txt
-jupyter notebook fake_news_classification.ipynb
-```
 
 ## Limitations
 

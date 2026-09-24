@@ -10,7 +10,7 @@ readme = "README.md"
 license = { file = "LICENSE.md" }
 requires-python = ">=3.10"
 authors = [{ name = "Nikos Mavrapidis" }]
-keywords = ["retrieval", "IR", "hybrid-search", "ISOT", "text-classification"]
+keywords = ["retrieval", "IR", "hybrid-search", "ISOT"]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Developers",
@@ -32,14 +32,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Classification notebook stack (wordcloud, plotly, jupyter, …)
+# Walkthrough notebook (evidence_retrieval.ipynb).
 notebook = [
-  "gensim>=4.3,<5",
-  "matplotlib>=3.7,<4",
-  "seaborn>=0.13,<1",
-  "plotly>=5.18,<7",
-  "nltk>=3.8,<4",
-  "wordcloud>=1.9,<2",
   "jupyter>=1.0,<2",
   "nbconvert>=7.0,<8",
   "ipykernel>=6.0,<7",
