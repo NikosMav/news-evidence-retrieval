@@ -1,4 +1,7 @@
-"""Run retrieval evaluation and ablations; write results CSVs."""
+"""ISOT closed-corpus title-recovery demo: metrics, ablations, and CSV output.
+
+SciFact scoring lives in ``evidence_retrieval.eval.scifact``.
+"""
 
 from __future__ import annotations
 

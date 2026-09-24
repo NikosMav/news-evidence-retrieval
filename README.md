@@ -1,16 +1,11 @@
 # News Evidence Retrieval
 
-Passage retrieval with TF-IDF, BM25, MiniLM embeddings, and hybrid reciprocal
-rank fusion (RRF).
+A claim goes in. Ranked passages come out. The score is SciFact document
+ranking with BM25, MiniLM, and hybrid reciprocal rank fusion (RRF), next to
+the published BEIR BM25 anchor of **0.665**.
 
-This project retrieves passages from a fixed corpus. It is **not a
-fact-checker**. ISOT labels are source buckets, and a retrieved neighbor does
-not establish whether a claim is true.
-
-The comparison that can support a retrieval claim is SciFact document ranking
-(nDCG@10 and Recall@100) next to the published BEIR BM25 anchor of **0.665**.
-The ISOT table further down is a title-recovery sanity check. Do not cite it as
-evidence retrieval.
+This is **not a fact-checker**. A retrieved passage does not establish whether
+the claim is true.
 
 ## SciFact test
 
@@ -87,67 +82,28 @@ than both parents on 0 test queries.
 
 CI does not download BEIR or these models.
 
-## ISOT title-recovery sanity check
+## ISOT closed-corpus demo
 
-The committed ISOT run uses 4,000 sampled articles and 300 queries. The query is the
-article title. The gold set is every indexed body chunk of that same article.
-High scores mean the index can find an article from a lightly edited copy of
-its headline.
+The same package can index the ISOT news CSVs and return ranked passages for a
+local query. That demo is not the score. Title recovery (the query is the
+article title; the gold set is that article's passages), the paraphrase
+rewrite, and the chunk-size ablations stay in [`results/`](results/README.md)
+so they can be regenerated. Do not cite them next to the BEIR anchor.
 
-<!-- METRICS_TABLE_START -->
-| Method | Article Hit@1 | Article Hit@5 | Article Hit@10 | Passage Recall@5 | nDCG@5 | nDCG@10 | MRR |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| tfidf | 0.6533 | 0.8267 | 0.8700 | 0.4675 | 0.5181 | 0.5321 | 0.7290 |
-| dense | 0.7767 | 0.8867 | 0.9033 | 0.5528 | 0.6163 | 0.6324 | 0.8205 |
-| hybrid | 0.7833 | 0.9100 | 0.9400 | 0.5531 | 0.6258 | 0.6397 | 0.8415 |
-<!-- METRICS_TABLE_END -->
+The demo's default sparse arm is TF-IDF, which is what those committed files
+used. SciFact uses BM25 (`sparse_backend="bm25"`).
 
-Hybrid's article Hit@1 edge over dense is **0.0067** (0.7833 vs 0.7767, two
-queries in 300). Article Hit@10 moves more: 0.9400 vs 0.9033.
-
-Passage recall moves with chunk size because every chunk of the gold article is
-relevant. In the committed ablation (2,000 articles, 150 queries), hybrid
-article Hit@1 stays near 0.80 while passage Recall@5 goes from 0.397 at 60-word
-chunks to 0.795 at 240-word chunks. Putting the title into the indexed passage
-inflates article Hit@1 to 0.9867 (`results/retrieval_ablations.csv`). Ablation
-defaults in the eval CLI match that committed run.
-
-`article_mrr` was dropped. With one gold article it duplicated passage MRR on
-every committed row.
-
-## Paraphrase rewrite
-
-The deterministic rewrite is not a robustness result. On the 300 committed
-pairs, mean token Jaccard between the title and the rewrite is **0.806**, and
-about 94% of content words are kept. TF-IDF article Hit@1 **rose** from 0.6533
-to 0.6767. Hybrid MRR moved from 0.8415 to 0.8291. Details are in
-[`results/paraphrase_eval_meta.json`](results/paraphrase_eval_meta.json).
-
-## What this project demonstrates
-
-- Reproducible ingestion and stratified sampling of ISOT articles
-- Overlapping passage chunking with article and source metadata
-- Sparse TF-IDF (ISOT default) and BM25 (`bm25s`) beside it
-- Dense MiniLM and hybrid RRF retrieval
-- Saved, reloadable indexes and a command-line interface
-- A SciFact document-ranking script with pytrec_eval metrics
-- Unit tests and CI without dataset or model downloads
-
-## Retrieval pipeline
-
-```text
-ISOT CSVs -> article sample -> passages -> TF-IDF + MiniLM indexes
-                                             |
-query ---------------------------------------+-> RRF -> ranked passages
-
-SciFact abstracts (ir_datasets) -> BM25 + MiniLM -> RRF -> nDCG@10, Recall@100
+```bash
+python scripts/download_data.py
+python -m evidence_retrieval build
+python -m evidence_retrieval query "Federal Reserve raises interest rates" --top-k 5
 ```
 
-The default ISOT index contains body passages of about 120 words with 20-word
-overlap. Index artifacts store passage metadata, the active sparse index, dense
-vectors, and the configuration required to reload the same index. TF-IDF
-remains the ISOT sparse arm so the title-recovery table can still be
-regenerated. BM25 is selected with `sparse_backend="bm25"`.
+The first build downloads `sentence-transformers/all-MiniLM-L6-v2` and writes
+the index under `data/retrieval_index/default/`. Passages are about 120 words
+with 20-word overlap. `python -m evidence_retrieval eval` regenerates the
+title-recovery files. It does not rewrite the SciFact table.
+`evidence_retrieval.ipynb` is the same demo on a 200-article sample.
 
 ## Quick start
 
@@ -164,52 +120,31 @@ pytest
 python -m evidence_retrieval -h
 ```
 
-Build and query a real local ISOT index (TF-IDF + MiniLM):
-
-```bash
-python scripts/download_data.py
-python -m evidence_retrieval build
-python -m evidence_retrieval query "Federal Reserve raises interest rates" --top-k 5
-```
-
-The first build downloads `sentence-transformers/all-MiniLM-L6-v2` and writes the
-index under `data/retrieval_index/default/`.
-
-Regenerate the ISOT title-recovery evidence (ablation defaults: 2,000 articles,
-150 queries):
-
-```bash
-python -m evidence_retrieval eval
-python -m evidence_retrieval eval --paraphrase-only
-```
-
 ## Repository map
 
 | Path | Purpose |
 | --- | --- |
-| `evidence_retrieval/` | Chunking, TF-IDF, BM25, index, evaluation, and CLI |
+| `evidence_retrieval/` | Chunking, BM25, MiniLM, hybrid RRF, and the CLI |
 | `tests/` | Unit tests (no BEIR, no torch) |
-| `results/` | SciFact test table, ablations, and the ISOT title-recovery demo |
+| `results/` | SciFact scores, failures, and ablations; ISOT demo files |
 | `scripts/run_scifact_eval.py` | BM25 vs MiniLM vs RRF on SciFact |
 | `scripts/run_scifact_ablations.py` | Cross-encoder rerank and BGE-small on the frozen test split |
-| `scripts/` | Data download, ISOT demo evaluation, and the retrieval notebook helper |
-| `evidence_retrieval.ipynb` | Closed-corpus ISOT demo |
+| `evidence_retrieval.ipynb` | Short ISOT query demo of the same package |
 
 ## Limitations
 
-- The ISOT corpus is closed and historical. No web evidence is fetched.
-- ISOT judgments are same-article title recovery, not independent qrels.
-- The paraphrase rewrite does not remove enough lexical overlap to stress BM25.
-- The committed SciFact test table is the BEIR comparison. Regenerating it needs `pip install -e ".[scifact]"` and the commands above. Tokenizer and BM25 parameters are named in `results/scifact_eval_meta.json`; they are not a guaranteed match to Elasticsearch's 0.665.
+- The committed SciFact test table is the comparison. Regenerating it needs `pip install -e ".[scifact]"` and the commands above. Tokenizer and BM25 parameters are named in `results/scifact_eval_meta.json`; they are not a guaranteed match to Elasticsearch's 0.665.
 - The dense index is an in-memory brute-force cosine index. A few thousand vectors do not need an ANN service.
-- Source-bucket labels can encode outlet and style artifacts.
+- The ISOT demo is a closed historical corpus. Its judgments are same-article title recovery, not independent qrels, and source-bucket labels can encode outlet and style.
+- No web evidence is fetched.
 
 ## Data and license
 
 `scripts/download_data.py` downloads the
-[ISOT Fake News Dataset](https://onlineacademiccommunity.uvic.ca/isot/2022/11/27/fake-news-detection-datasets/).
-SciFact is loaded on demand via `ir_datasets` (`beir/scifact`, CC BY-NC 2.0).
-The large CSVs, BEIR cache, and generated indexes are not part of Git.
+[ISOT Fake News Dataset](https://onlineacademiccommunity.uvic.ca/isot/2022/11/27/fake-news-detection-datasets/)
+for the closed-corpus demo. SciFact is loaded on demand via `ir_datasets`
+(`beir/scifact`, CC BY-NC 2.0). The large CSVs, BEIR cache, and generated
+indexes are not part of Git.
 
 Code is released under the [MIT License](LICENSE.md). Dataset use remains subject
 to the source dataset's terms.

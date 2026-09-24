@@ -1,7 +1,7 @@
 # Dataset directory
 
-ISOT CSVs live here for the closed-corpus title-recovery demo. They are not the
-evaluation headline. That table is SciFact document ranking in the root README.
+ISOT CSVs live here for the closed-corpus demo of the same passage index.
+They are not the score. That table is SciFact document ranking in the root README.
 
 Place `True.csv` and `Fake.csv` here (ISOT Fake News Dataset).
 

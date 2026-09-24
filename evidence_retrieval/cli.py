@@ -1,4 +1,6 @@
-"""CLI: build index, query passages, run evaluation.
+"""CLI for the ISOT closed-corpus demo of the passage index.
+
+SciFact scoring is `scripts/run_scifact_eval.py`, not these subcommands.
 
 Examples:
   python -m evidence_retrieval build --data-dir data --out data/retrieval_index/default
@@ -288,11 +290,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="evidence_retrieval",
         description=(
-            "Closed-corpus demo over the ISOT news corpus.\n\n"
-            "Chunk articles -> TF-IDF or BM25 + MiniLM -> hybrid RRF ranking.\n"
-            "Returns ranked passages with title, source-bucket label, and score.\n\n"
-            "The evaluation claim is the SciFact table in the README,\n"
-            "not this title-recovery demo.\n\n"
+            "Rank passages for a claim. The score is SciFact\n"
+            "(BM25, MiniLM, hybrid RRF), not this command.\n\n"
+            "build / query / eval are a closed-corpus demo on ISOT:\n"
+            "the same package, not the evaluation. eval is title recovery.\n\n"
             "This is NOT a fact-checker. ISOT labels are source buckets\n"
             "(Reuters-style vs unreliable outlets), not claim-level truth.\n"
             'A retrieved "fake" neighbor does not prove a claim is false.'
