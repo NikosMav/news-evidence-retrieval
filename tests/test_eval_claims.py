@@ -1,4 +1,4 @@
-"""Committed ISOT numbers say what they mean. No model download."""
+"""Committed numbers say what they mean. No model download."""
 
 from __future__ import annotations
 
@@ -79,3 +79,43 @@ def test_committed_paraphrase_keeps_lexical_overlap():
     assert meta["mean_token_jaccard"] > 0.75
     assert "rose" in meta["note"]
     assert "expected to drop" not in meta["note"]
+
+
+def test_walkthrough_regenerates_the_scifact_test_split():
+    """The SciFact script defaults to train. The test table needs --split test."""
+    script = (ROOT / "scripts" / "run_scifact_eval.py").read_text(encoding="utf-8")
+    assert 'default="train"' in script
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    notebook = (ROOT / "evidence_retrieval.ipynb").read_text(encoding="utf-8")
+    builder = (ROOT / "scripts" / "build_retrieval_notebook.py").read_text(encoding="utf-8")
+    command = "python scripts/run_scifact_eval.py --split test"
+    assert command in readme
+    for text in (notebook, builder):
+        assert command in text
+        assert "defaults to train" in text
+        assert "Regenerate it with `python scripts/run_scifact_eval.py`." not in text
+
+
+def test_scifact_failure_note_matches_the_per_query_csv():
+    """The three README misses are the failure note, and those nDCG figures match the CSV."""
+    import re
+
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    note = (ROOT / "results" / "scifact_failures.md").read_text(encoding="utf-8")
+    assert "results/scifact_failures.md" in readme
+    assert "methionine" in readme and "methionine" in note
+    assert "vCJD" in readme and "vCJD" in note
+    assert "low-birth-weight" in readme and "low birth weight" in note.lower()
+
+    frame = pd.read_csv(ROOT / "results" / "scifact_test_per_query.csv", dtype={"query_id": str})
+    claims = re.findall(r"Claim `(\d+)`:", note)
+    assert claims == ["238", "48", "13"]
+    sections = re.split(r"\n### ", note)
+    for query_id, section in zip(claims, sections[1:]):
+        subset = frame[frame["query_id"] == query_id].set_index("method")
+        for method in ("bm25", "dense", "hybrid"):
+            match = re.search(rf"- {method} nDCG@10=([0-9.]+);", section)
+            assert match is not None, f"missing {method} line for claim {query_id}"
+            reported = float(match.group(1))
+            actual = float(subset.loc[method, "ndcg@10"])
+            assert abs(reported - actual) < 5e-4

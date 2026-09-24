@@ -25,7 +25,8 @@ Closed-corpus ISOT demo over the `evidence_retrieval` package: build (or load) a
 **tiny** local index, run one query, print ranked hits.
 
 The retrieval claim is the SciFact test table in the root **README**.
-Regenerate it with `python scripts/run_scifact_eval.py`. The ISOT
+Regenerate it with `python scripts/run_scifact_eval.py --split test`
+(the script defaults to train). The ISOT
 title-recovery script (`python scripts/run_retrieval_eval.py`) is a sanity
 check, not that table.
 
