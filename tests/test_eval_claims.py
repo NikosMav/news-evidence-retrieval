@@ -119,3 +119,39 @@ def test_scifact_failure_note_matches_the_per_query_csv():
             reported = float(match.group(1))
             actual = float(subset.loc[method, "ndcg@10"])
             assert abs(reported - actual) < 5e-4
+
+
+def test_readme_fusion_tail_matches_the_per_query_csv():
+    """The README's fusion-tail counts are the committed test file, not a retelling."""
+    frame = pd.read_csv(ROOT / "results" / "scifact_test_per_query.csv", dtype={"query_id": str})
+    wide = frame.pivot(index="query_id", columns="method")
+    ndcg = wide["ndcg@10"]
+    recall = wide["recall@100"]
+    reciprocal = wide["recip_rank"]
+    drop = ndcg["hybrid"] - ndcg["bm25"]
+    assert int((drop <= -0.5).sum()) == 10
+
+    query = "785"
+    assert float(ndcg.loc[query, "bm25"]) == 1.0
+    assert float(ndcg.loc[query, "hybrid"]) == 0.0
+    assert float(recall.loc[query, "hybrid"]) == 1.0
+    assert abs(float(reciprocal.loc[query, "hybrid"]) - (1 / 18)) < 1e-12
+
+    claim = "13"
+    for method in ("dense", "hybrid"):
+        assert float(ndcg.loc[claim, method]) == 0.0
+        assert float(recall.loc[claim, method]) == 1.0
+    assert int((recall["hybrid"] < recall["bm25"]).sum()) == 0
+    worse_than_both = (ndcg["hybrid"] < ndcg["bm25"]) & (ndcg["hybrid"] < ndcg["dense"])
+    assert int(worse_than_both.sum()) == 0
+
+    ablations = pd.read_csv(ROOT / "results" / "scifact_test_ablations.csv").set_index("method")
+    assert abs(float(ablations.loc["bge_hybrid", "recall@100"]) - 0.965) < 1e-12
+
+    readme = " ".join((ROOT / "README.md").read_text(encoding="utf-8").split())
+    assert "10 queries drop by at least 0.5 nDCG@10 versus BM25" in readme
+    assert "Query 785 goes from 1.0 to 0.0 while Recall@100 stays 1 (reciprocal rank 1/18)" in readme
+    assert "outside the top 10 and inside the top 100 for MiniLM and hybrid" in readme
+    assert "Hybrid loses Recall@100 to BM25 on 0 queries" in readme
+    assert "worse than both parents on 0 test queries" in readme
+    assert "BGE hybrid Recall@100 does move, to 0.9650" in readme

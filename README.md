@@ -61,8 +61,8 @@ used to choose it.
 
 Replacing MiniLM with `BAAI/bge-small-en-v1.5` moves dense nDCG@10 from 0.6451
 to 0.7127 (sign test against BM25, p=0.018). Queries use BGE's retrieval
-instruction; abstracts do not. Putting that encoder into RRF does not move the
-hybrid number (0.7189 vs 0.7194).
+instruction; abstracts do not. Putting that encoder into RRF does not move
+hybrid nDCG@10 (0.7189 vs 0.7194). BGE hybrid Recall@100 does move, to 0.9650.
 
 Reranking the top 50 hybrid hits with `cross-encoder/ms-marco-MiniLM-L-6-v2`
 does not help. nDCG@10 goes from 0.7194 to 0.6903, and the comparison with BM25
@@ -79,6 +79,12 @@ claim whose BM25 hit is a lifespan abstract while MiniLM returns a miRNA review;
 a vCJD prevalence claim that BM25 ranks first and MiniLM replaces with a different
 case report; and a low-birth-weight claim that none of the three systems place
 in the top 10.
+
+On the same per-query file, 10 queries drop by at least 0.5 nDCG@10 versus BM25.
+Query 785 goes from 1.0 to 0.0 while Recall@100 stays 1 (reciprocal rank 1/18).
+The low-birth-weight claim is outside the top 10 and inside the top 100 for
+MiniLM and hybrid. Hybrid loses Recall@100 to BM25 on 0 queries and is worse
+than both parents on 0 test queries.
 
 CI does not download BEIR or these models.
 
