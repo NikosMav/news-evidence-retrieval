@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "evidence-retrieval"
 version = "0.1.0"
-description = "Evidence retrieval (TF-IDF, BM25, MiniLM, hybrid RRF). Not a fact-checker."
+description = "SciFact document ranking (BM25, MiniLM, RRF) plus an ISOT closed-corpus demo. Not a fact-checker."
 readme = "README.md"
 license = { file = "LICENSE.md" }
 requires-python = ">=3.10"

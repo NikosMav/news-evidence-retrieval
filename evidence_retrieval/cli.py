@@ -288,9 +288,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="evidence_retrieval",
         description=(
-            "Evidence retrieval over the ISOT news corpus.\n\n"
+            "Closed-corpus demo over the ISOT news corpus.\n\n"
             "Chunk articles -> TF-IDF or BM25 + MiniLM -> hybrid RRF ranking.\n"
             "Returns ranked passages with title, source-bucket label, and score.\n\n"
+            "The evaluation claim is the SciFact table in the README,\n"
+            "not this title-recovery demo.\n\n"
             "This is NOT a fact-checker. ISOT labels are source buckets\n"
             "(Reuters-style vs unreliable outlets), not claim-level truth.\n"
             'A retrieved "fake" neighbor does not prove a claim is false.'

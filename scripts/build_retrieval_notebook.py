@@ -21,11 +21,13 @@ def build() -> nbf.NotebookNode:
             """
 # Evidence Retrieval Walkthrough
 
-Short interactive path over the `evidence_retrieval` package: build (or load) a
+Closed-corpus ISOT demo over the `evidence_retrieval` package: build (or load) a
 **tiny** local index, run one query, print ranked hits.
 
-For metrics, ablations, and the full case study, see the root **README** and
-`python scripts/run_retrieval_eval.py`.
+The retrieval claim is the SciFact test table in the root **README**.
+Regenerate it with `python scripts/run_scifact_eval.py`. The ISOT
+title-recovery script (`python scripts/run_retrieval_eval.py`) is a sanity
+check, not that table.
 
 **Not a fact-checker.** ISOT labels are source buckets; nearest neighbors ≠ verification.
 """

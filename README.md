@@ -84,7 +84,7 @@ CI does not download BEIR or these models.
 
 ## ISOT title-recovery sanity check
 
-The main ISOT run uses 4,000 sampled articles and 300 queries. The query is the
+The committed ISOT run uses 4,000 sampled articles and 300 queries. The query is the
 article title. The gold set is every indexed body chunk of that same article.
 High scores mean the index can find an article from a lightly edited copy of
 its headline.
@@ -184,10 +184,11 @@ python -m evidence_retrieval eval --paraphrase-only
 | --- | --- |
 | `evidence_retrieval/` | Chunking, TF-IDF, BM25, index, evaluation, and CLI |
 | `tests/` | Unit tests (no BEIR, no torch) |
-| `results/` | ISOT sanity-check metrics and, when run, SciFact tables |
+| `results/` | SciFact test table, ablations, and the ISOT title-recovery demo |
 | `scripts/run_scifact_eval.py` | BM25 vs MiniLM vs RRF on SciFact |
-| `scripts/` | Data download, ISOT evaluation, and notebook helpers |
-| `evidence_retrieval.ipynb` | Short retrieval walkthrough |
+| `scripts/run_scifact_ablations.py` | Cross-encoder rerank and BGE-small on the frozen test split |
+| `scripts/` | Data download, ISOT demo evaluation, and notebook helpers |
+| `evidence_retrieval.ipynb` | Closed-corpus ISOT demo |
 | `fake_news_classification.ipynb` | Original classification case study |
 
 ## Why the 0.9963 SVM misleads
@@ -212,7 +213,7 @@ jupyter notebook fake_news_classification.ipynb
 - The ISOT corpus is closed and historical. No web evidence is fetched.
 - ISOT judgments are same-article title recovery, not independent qrels.
 - The paraphrase rewrite does not remove enough lexical overlap to stress BM25.
-- SciFact numbers are comparable to BEIR only after `run_scifact_eval.py --split test`. Tokenizer and BM25 parameters are named in that script; they are not a guaranteed match to Elasticsearch's 0.665.
+- The committed SciFact test table is the BEIR comparison. Regenerating it needs `pip install -e ".[scifact]"` and the commands above. Tokenizer and BM25 parameters are named in `results/scifact_eval_meta.json`; they are not a guaranteed match to Elasticsearch's 0.665.
 - The dense index is an in-memory brute-force cosine index. A few thousand vectors do not need an ANN service.
 - Source-bucket labels can encode outlet and style artifacts.
 
