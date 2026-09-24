@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "evidence-retrieval"
 version = "0.1.0"
-description = "Evidence retrieval over the ISOT news corpus (TF-IDF + MiniLM + hybrid RRF). Not a fact-checker."
+description = "SciFact document ranking (BM25, MiniLM, RRF) plus an ISOT closed-corpus demo. Not a fact-checker."
 readme = "README.md"
 license = { file = "LICENSE.md" }
 requires-python = ">=3.10"
@@ -27,6 +27,8 @@ dependencies = [
   "torch>=2.0,<3",
   "pyarrow>=14,<20",
   "joblib>=1.3,<2",
+  "bm25s>=0.3,<0.4",
+  "PyStemmer>=2.2,<4",
 ]
 
 [project.optional-dependencies]
@@ -45,6 +47,12 @@ notebook = [
 ]
 dev = [
   "pytest>=7.4,<9",
+  "pytrec_eval>=0.5",
+]
+# SciFact document qrels. Not installed in CI; the loader imports ir_datasets lazily.
+scifact = [
+  "ir-datasets>=0.5.8,<1",
+  "pytrec_eval>=0.5",
 ]
 all = [
   "evidence-retrieval[notebook,dev]",

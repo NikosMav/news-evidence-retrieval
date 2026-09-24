@@ -81,12 +81,37 @@ _SYNONYMS: dict[str, str] = {
 _FUNCTION_WORDS = frozenset(
     {"a", "an", "the", "of", "to", "in", "on", "for", "and", "or"}
 )
+_TOKEN_RE = re.compile(r"[a-z0-9]+")
 
 _FALLBACK_TEMPLATES = (
     "What happened with {core}",
     "Reports concerning {core}",
     "Coverage of {core}",
 )
+
+
+def token_set(text: str) -> set[str]:
+    return set(_TOKEN_RE.findall(str(text).lower()))
+
+
+def token_jaccard(left: str, right: str) -> float:
+    """Token Jaccard used to show the title rewrite barely changes the query."""
+    a = token_set(left)
+    b = token_set(right)
+    if not a and not b:
+        return 1.0
+    union = a | b
+    if not union:
+        return 0.0
+    return len(a & b) / len(union)
+
+
+def content_word_retention(original: str, rewrite: str) -> float:
+    """Share of non-function tokens from ``original`` that survive in ``rewrite``."""
+    content = {tok for tok in token_set(original) if tok not in _FUNCTION_WORDS}
+    if not content:
+        return 1.0
+    return len(content & token_set(rewrite)) / len(content)
 
 
 def paraphrase_title(title: str) -> str:
@@ -209,10 +234,10 @@ def build_paraphrase_queries(
     min_title_words: int = 4,
     random_state: int = 7,
 ) -> list[EvalQuery]:
-    """Paraphrase-title → gold = same article's indexed body passages.
+    """Rule-based title rewrite; gold is still that article's indexed passages.
 
-    Harder proxy than raw title self-retrieval: the query is no longer a near-copy
-    of an indexed title string. Gold qrels are unchanged (same ``article_id``).
+    The rewrite keeps most content words (see ``token_jaccard``). It is not a
+    lexical stress test. Gold ids are unchanged (same ``article_id``).
     """
     base = build_title_queries(
         chunks,

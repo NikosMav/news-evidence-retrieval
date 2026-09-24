@@ -1,7 +1,7 @@
 # Qualitative failure cases (auto-sampled from eval detail)
 
-These examples come from the title→passage evaluation detail dump.
-They illustrate limits of nearest-neighbor retrieval over ISOT — not claim verdicts.
+These examples come from the ISOT title-recovery sanity check (query = article title, gold = that article's passages).
+They are misses against finding the source article, not against finding evidence for a claim.
 
 ## Misses (gold article absent from top-5)
 
@@ -58,4 +58,4 @@ Same-subject neighbors often share wire diction or political framing; the ranker
 
 ## Takeaway
 
-High self-retrieval scores mean the index can find an article's own passages from its title. That is necessary but not sufficient for fact-checking. ISOT labels remain source buckets.
+High scores here mean the index can find an article's own passages from its title. That is a pipeline sanity check, not evidence retrieval. ISOT labels remain source buckets.

@@ -1,18 +1,30 @@
 {
-  "protocol": "Title-as-claim self-retrieval: query=article title; gold=indexed chunks with the same article_id. Not human fact-check labels.",
+  "protocol": "ISOT title-recovery sanity check. The query is the article title and the gold set is every indexed chunk of that same article. This is not human relevance judgment, not claim verification, and not comparable to SciFact or BEIR.",
+  "interpretation": {
+    "hit_at_1_note": "Hybrid's article Hit@1 edge over dense is 0.0067 (0.7833 vs 0.7767), while article Hit@10 moves more (0.9400 vs 0.9033).",
+    "passage_recall_note": "Passage recall moves with chunk size because every chunk of the gold article is relevant. Hybrid passage Recall@5 goes from 0.397 at 60 words to 0.795 at 240 words, while article Hit@1 stays near 0.800\u20130.807.",
+    "article_mrr_note": "article_mrr was dropped. With a single gold article it duplicated passage MRR on every committed row, so it was not a second result."
+  },
   "main_comparison": {
     "n_articles": 4000,
     "chunk_words": 120,
-    "fields": ["body"],
+    "fields": [
+      "body"
+    ],
     "n_queries": 300,
     "dense_model": "sentence-transformers/all-MiniLM-L6-v2",
-    "methods": ["tfidf", "dense", "hybrid"],
-    "random_state": 7
+    "methods": [
+      "tfidf",
+      "dense",
+      "hybrid"
+    ],
+    "random_state": 7,
+    "role": "title-recovery sanity check"
   },
   "ablations": {
     "n_articles": 2000,
     "n_queries": 150,
-    "notes": "Shared article sample across chunk-size / field / method experiments."
+    "notes": "Shared article sample across chunk-size / field / method experiments. This file used 2000 articles and 150 queries. The eval CLI defaults are 2000 articles and 150 queries, matching the committed run."
   },
   "metrics_file": "results/retrieval_metrics.csv",
   "ablations_file": "results/retrieval_ablations.csv"

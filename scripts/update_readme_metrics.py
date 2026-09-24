@@ -15,10 +15,35 @@ START = "<!-- METRICS_TABLE_START -->"
 END = "<!-- METRICS_TABLE_END -->"
 PARA_START = "<!-- PARAPHRASE_METRICS_TABLE_START -->"
 PARA_END = "<!-- PARAPHRASE_METRICS_TABLE_END -->"
+SCIFACT = ROOT / "results" / "scifact_test_metrics.csv"
+SCIFACT_ABLATION = ROOT / "results" / "scifact_test_ablations.csv"
+SCIFACT_START = "<!-- SCIFACT_TEST_TABLE_START -->"
+SCIFACT_END = "<!-- SCIFACT_TEST_TABLE_END -->"
+SCIFACT_ABLATION_START = "<!-- SCIFACT_ABLATION_TABLE_START -->"
+SCIFACT_ABLATION_END = "<!-- SCIFACT_ABLATION_TABLE_END -->"
 
 
 def fmt(x: float) -> str:
     return f"{x:.4f}"
+
+
+def build_scifact_table(df: pd.DataFrame) -> str:
+    cols = [
+        ("method", "Method", None),
+        ("ndcg@10", "nDCG@10", fmt),
+        ("recall@100", "Recall@100", fmt),
+        ("recip_rank", "Reciprocal rank", fmt),
+    ]
+    header = "| " + " | ".join(c[1] for c in cols) + " |"
+    sep = "| " + " | ".join("---" if c[2] is None else "---:" for c in cols) + " |"
+    lines = [header, sep]
+    for _, row in df.iterrows():
+        cells = []
+        for key, _, formatter in cols:
+            val = row[key]
+            cells.append(str(val) if formatter is None else formatter(float(val)))
+        lines.append("| " + " | ".join(cells) + " |")
+    return "\n".join(lines)
 
 
 def build_table(df: pd.DataFrame) -> str:
@@ -78,6 +103,18 @@ def main() -> int:
             )
             text = _replace_block(text, PARA_START, PARA_END, placeholder)
             print("Paraphrase metrics CSV missing; left honest placeholder in README")
+
+    if SCIFACT_START in text and SCIFACT_END in text and SCIFACT.exists():
+        text = _replace_block(text, SCIFACT_START, SCIFACT_END, build_scifact_table(pd.read_csv(SCIFACT)))
+        print(f"Updated README SciFact test table from {SCIFACT}")
+    if SCIFACT_ABLATION_START in text and SCIFACT_ABLATION_END in text and SCIFACT_ABLATION.exists():
+        text = _replace_block(
+            text,
+            SCIFACT_ABLATION_START,
+            SCIFACT_ABLATION_END,
+            build_scifact_table(pd.read_csv(SCIFACT_ABLATION)),
+        )
+        print(f"Updated README SciFact ablation table from {SCIFACT_ABLATION}")
 
     text = text.replace(
         "**Placeholder until the eval run commits real numbers** — if you are reading a checkout\n"
