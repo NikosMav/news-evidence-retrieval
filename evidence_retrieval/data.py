@@ -1,4 +1,4 @@
-"""Load and sample the ISOT Fake News CSVs."""
+"""Load and sample ISOT CSVs for the closed-corpus demo."""
 
 from __future__ import annotations
 

@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Insert metrics CSVs into README table markers (main + paraphrase)."""
+"""Insert SciFact metric CSVs into README table markers.
+
+ISOT title-recovery markers are refreshed only when the README still has them.
+The root README keeps that demo out of the scored table.
+"""
 
 from __future__ import annotations
 
@@ -80,13 +84,13 @@ def _replace_block(text: str, start: str, end: str, body: str) -> str:
 def main() -> int:
     text = README.read_text(encoding="utf-8")
 
-    if METRICS.exists():
+    if METRICS.exists() and START in text and END in text:
         table = build_table(pd.read_csv(METRICS))
         text = _replace_block(text, START, END, table)
-        print(f"Updated README main metrics table from {METRICS}")
+        print(f"Updated README ISOT demo table from {METRICS}")
         print(table)
     else:
-        print(f"Missing {METRICS}; skipping main table")
+        print("README has no ISOT metrics markers; leaving the demo table in results/")
 
     if PARA_START in text and PARA_END in text:
         if PARA_METRICS.exists():

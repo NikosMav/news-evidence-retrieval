@@ -1,7 +1,8 @@
 # Retrieval eval outputs
 
-The headline result is the SciFact test table (`beir/scifact/test`, 300 queries).
-ISOT files further down are a closed-corpus title-recovery demo.
+One system: a claim in, ranked passages out, scored on SciFact
+(`beir/scifact/test`, 300 queries). Files further down are the ISOT
+closed-corpus demo, not a second evaluation.
 
 | Method | nDCG@10 | Recall@100 |
 | --- | ---: | ---: |
